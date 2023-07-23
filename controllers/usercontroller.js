@@ -162,11 +162,19 @@ function addProdtoUserCart(req, res){
             return res.status(204).send({message: "No user Found"})
         } 
 
-        if (!user.cart[req.body.title]){
-            user.cart[req.body.title] = req.body.quantity;
+        if (req.body.setquantity){
+            user.cart[req.body.title] = setquantity;
         } else {
-            user.cart[req.body.title] += req.body.quantity;
+            if (!user.cart[req.body.title]){
+                user.cart[req.body.title] = req.body.quantity;
+            } else {
+                user.cart[req.body.title] += req.body.quantity;
+            }
         }
+
+        if (user.cart[req.body.title] <= 0){
+            delete user.cart[req.body.title];
+        }        
         
         user.markModified('cart');
         console.log(user.cart);
@@ -227,13 +235,13 @@ function getCart(req, res){
                 console.log("nothing found")
                 return undefined;
             } 
-            cart_products.push(product)
+            let mod_product = structuredClone(product)._doc;
+            mod_product['quantity'] = cart[prod_title];
+            cart_products.push(mod_product);
             return product
         });
 
         await Promise.all(getObjects);
-
-        console.log(cart_products);
 
         return res.status(200).send({cart_products})
     });
