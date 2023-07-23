@@ -23,11 +23,16 @@ router.delete('/', adminController.authenticate_admin_token, userController.dele
 
 router.post('/login', userController.loginUser);
 
+router.post('/signup', userController.signupUser)
+
 router.get('/:username', userController.readUser); 
 
 router.post('/:username/cart', userController.authenticate_user_token, userController.addProdtoUserCart)
+router.post('/:username/wishlist', userController.authenticate_user_token, userController.addProdtoUserWishlist)
+// router.post('/:username/wishlist', ..., ...)
 
 router.get('/:username/cart', userController.authenticate_user_token, userController.getCart)
+router.get('/:username/wishlist', userController.authenticate_user_token, userController.getWishlist)
 
 // router.get('/:username/sale-report', userController.authenticate_user_token)
 

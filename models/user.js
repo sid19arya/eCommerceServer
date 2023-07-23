@@ -10,7 +10,8 @@ const UserSchema = new Schema(
         cart: Schema.Types.Mixed,
         wishlist: Schema.Types.Mixed,
         coupons: Schema.Types.Mixed
-    }
+    }, 
+    {minimize: false}
 )
 
 module.exports = mongoose.model("User", UserSchema, "users");

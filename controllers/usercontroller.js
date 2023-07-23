@@ -74,6 +74,41 @@ function deleteUser(req, res){
     })
 }
 
+function signupUser(req, res){
+
+    if (!req.body.username || !req.body.password) {
+        return res.status(418).send({message: "missing details"});
+    }
+    
+    if (!req.body.created){
+        req.body.created = new Date();
+    }
+    if (!req.body.cart){
+        req.body.cart = {};
+    }
+    if (!req.body.wishlist){
+        req.body.wishlist = [];
+    }
+    if (!req.body.coupons){
+        req.body.coupons = [];
+    }
+    
+    const newUser = new User({
+        username: req.body.username,
+        password: req.body.password,
+        created: req.body.created,
+        cart: req.body.cart,
+        wishlist: req.body.wishlist,
+        coupons: req.body.coupons
+    })
+
+    newUser.save().then(() => {
+        return res.status(200).send({message: "Successfully created User"})
+    })
+
+    // return res.status(501).send({payload: "This part has not been implemented yet, please request an admin to create your account"})
+}
+
 function loginUser(req, res){
     const {username, password} = req.body;
 
@@ -87,7 +122,13 @@ function loginUser(req, res){
         } 
         
         const access_token = jwt.sign(user.toJSON(), process.env.USERTOKEN)
-        return res.status(200).send({access_token});
+
+        let payload = structuredClone(user);
+        payload._doc['access_token'] = access_token
+        // console.log(payload._doc);
+        // console.log(access_token)
+
+        return res.status(200).send(payload._doc);
     })   
 }
 
@@ -128,6 +169,33 @@ function addProdtoUserCart(req, res){
         }
         
         user.markModified('cart');
+        console.log(user.cart);
+        user.save().then(() => {
+            console.log(user)
+            return res.status(200).send({msg: "the product was added to cart"})
+        })
+    })   
+}
+
+function  addProdtoUserWishlist(req, res){
+    const req_user = req.params.username;
+    // const {title} = req.params;
+    // req.boody.username, quantity, authenticated_user
+    if (!(req_user == req.body.authenticated_user.username)){
+        return res.status(403).send({message: "This action is forbidden"});
+    }
+    
+    User.findOne({username: req_user}).then((user) => {
+        if (!user){
+            return res.status(204).send({message: "No user Found"})
+        } 
+
+        if (user.wishlist.includes(req.body.title)){
+            return res.status(200).send({msg: "this product was already in the cart"})
+        } else {
+            user.wishlist.push(req.body.title);
+        }        
+        user.markModified('wishlist');
         user.save().then(() => {
             console.log(user)
             return res.status(200).send({msg: "the product was added to cart"})
@@ -138,12 +206,67 @@ function addProdtoUserCart(req, res){
 function getCart(req, res){
     const req_user = req.params.username;
 
-    User.findOne({username: req_user}).then(user => {
+    User.findOne({username: req_user}).then(async user => {
         if (!user){
             return res.status(204).send({message: "No user Found"})
         } 
         const cart = user.cart;
-        return res.status(200).send({cart})
+        // Instead of the return stataement following this line exactly, we want to query each one of these title names and then return a products list, ofc with quanity in cart as one of the things, perhaps replacing stock??
+        if (!cart){
+            return res.status(200).send({})
+        }
+        const product_titles = Object.keys(cart);
+
+        const cart_products = [];
+
+        const getObjects = product_titles.map(async (prod_title) => {
+
+            const product = await Product.findOne({title: prod_title});
+            
+            if (!product){
+                console.log("nothing found")
+                return undefined;
+            } 
+            cart_products.push(product)
+            return product
+        });
+
+        await Promise.all(getObjects);
+
+        console.log(cart_products);
+
+        return res.status(200).send({cart_products})
+    });
+}
+
+function getWishlist(req, res){
+    const req_user = req.params.username;
+
+    User.findOne({username: req_user}).then(async user => {
+        if (!user){
+            return res.status(204).send({message: "No user Found"})
+        } 
+        const wishlist = user.wishlist;
+
+        const wishlist_products = [];
+
+        const getObjects = wishlist.map(async (prod_title) => {
+
+            const product = await Product.findOne({title: prod_title});
+            
+            if (!product){
+                console.log("nothing found")
+                return undefined;
+            } 
+            wishlist_products.push(product)
+            return product
+        });
+
+        await Promise.all(getObjects);
+
+        console.log(wishlist_products);
+
+        return res.status(200).send({wishlist_products})
     });
 }
 
@@ -198,5 +321,5 @@ function cartSaleReport(){
 
 module.exports = {createUser, readUser, updateUser, deleteUser, 
     loginUser, authenticate_user_token, addProdtoUserCart, getCart, 
-    purchaseCart, purchaseProduct
+    purchaseCart, purchaseProduct, signupUser, getWishlist, addProdtoUserWishlist
     }
